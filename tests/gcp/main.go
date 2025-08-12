@@ -21,9 +21,9 @@ import (
 	"sort"
 
 	"github.com/GoogleCloudPlatform/terraformer/cmd"
-	"github.com/GoogleCloudPlatform/terraformer/terraform_utils"
+	"github.com/GoogleCloudPlatform/terraformer/terraformutils"
 
-	"github.com/GoogleCloudPlatform/terraformer/gcp_terraforming"
+	gcp_terraforming "github.com/GoogleCloudPlatform/terraformer/providers/gcp"
 )
 
 const command = "terraform init && terraform plan"
@@ -51,20 +51,22 @@ func main() {
 		if service == "cloudsql" {
 			continue
 		}
+		if service == "bigQuery" {
+			continue
+		}
 		services = append(services, service)
-
 	}
 	sort.Strings(services)
 	provider = &gcp_terraforming.GCPProvider{
-		Provider: terraform_utils.Provider{},
+		Provider: terraformutils.Provider{},
 	}
 	err := cmd.Import(provider, cmd.ImportOptions{
-		Resources:  services,
-		PathPatter: cmd.DefaultPathPatter,
-		PathOutput: cmd.DefaultPathOutput,
-		State:      "local",
-		Zone:       "europe-west1-a",
-		Connect:    true,
+		Resources:   services,
+		PathPattern: cmd.DefaultPathPattern,
+		PathOutput:  cmd.DefaultPathOutput,
+		State:       "local",
+		Zone:        "europe-west1-a",
+		Connect:     true,
 	}, []string{zone})
 	if err != nil {
 		log.Println(err)
@@ -72,7 +74,7 @@ func main() {
 	}
 	rootPath, _ := os.Getwd()
 	for _, serviceName := range services {
-		currentPath := cmd.Path(cmd.DefaultPathPatter, provider.GetName(), serviceName, cmd.DefaultPathOutput)
+		currentPath := cmd.Path(cmd.DefaultPathPattern, provider.GetName(), serviceName, cmd.DefaultPathOutput)
 		if err := os.Chdir(currentPath); err != nil {
 			log.Println(err)
 			os.Exit(1)
@@ -85,7 +87,9 @@ func main() {
 			log.Println(err)
 			os.Exit(1)
 		}
-		os.Chdir(rootPath)
+		err := os.Chdir(rootPath)
+		if err != nil {
+			log.Println(err)
+		}
 	}
-
 }
